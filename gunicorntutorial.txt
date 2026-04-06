@@ -1,0 +1,113 @@
+1. Konsep singkat
+
+- Sekali saja di VPS kamu buat service systemd : misalnya namanya ocerbackend .
+- Service itu yang akan:
+  - jalanin gunicorn config.wsgi:application -c gunicorn.conf.py
+  - otomatis start saat reboot VPS
+  - gampang di‑restart dan dicek log‑nya
+2. Setup sekali di VPS (di luar repo)
+
+Di VPS kamu:
+
+1. Buat file service:
+   
+   ```
+   sudo nano /etc/systemd/system/
+   ocerbackend.service
+   ```
+2. Isi dengan ini (sesuaikan path kalau beda):
+   
+   ```
+   [Unit]
+   Description=Gunicorn Django 
+   Ocerinbackend
+   After=network.target
+   
+   [Service]
+   # ganti user kalau kamu pakai 
+   user lain, misal `www-data`
+   User=root
+   WorkingDirectory=/root/
+   Ocerinbackend
+   
+   Environment="DJANGO_SETTINGS_MODU
+   LE=config.settings"
+   Environment="PYTHONUNBUFFERED=1"
+   
+   # kalau pakai virtualenv
+   ExecStart=/root/Ocerinbackend/
+   venv/bin/gunicorn config.
+   wsgi:application -c gunicorn.
+   conf.py
+   
+   Restart=always
+   RestartSec=5
+   
+   [Install]
+   WantedBy=multi-user.target
+   ```
+3. Daftarkan dan jalankan:
+   
+   ```
+   sudo systemctl daemon-reload
+   sudo systemctl enable 
+   ocerbackend.service
+   sudo systemctl start ocerbackend.
+   service
+   ```
+Kalau ini sudah, kamu nggak perlu lagi jalankan gunicorn ... manual di terminal.
+
+3. Perintah sehari‑hari (start / restart / status / logs)
+
+Setelah service di atas ada, cukup ingat 4 perintah ini:
+
+- Start (kalau lagi mati):
+  
+  ```
+  sudo systemctl start ocerbackend
+  ```
+- Restart (habis update code):
+  
+  ```
+  sudo systemctl restart ocerbackend
+  ocerbackend
+  ```
+- Cek status cepat (lihat aktif/nggak dan error singkat):
+  
+  ```
+  sudo systemctl status ocerbackend
+  ```
+- Cek logs realtime (kayak tail -f untuk service):
+  
+  ```
+  sudo journalctl -u ocerbackend 
+  -n 100 -f
+  ```
+  - -n 100 → ambil 100 baris terakhir
+  - -f → follow, jadi jalan terus kayak live log
+4. Alternatif: cek log file langsung dari konfigurasi Gunicorn
+
+Karena di gunicorn.conf.py kita sudah set default:
+
+- logs/gunicorn.access
+- logs/gunicorn.err
+kamu juga bisa cek via:
+
+```
+cd /root/Ocerinbackend
+
+# error log (paling sering dipakai)
+tail -f logs/gunicorn.err
+
+# access log (request dari user)
+tail -f logs/gunicorn.access
+```
+Ringkasannya
+
+Setelah setup systemd:
+
+- Start: sudo systemctl start ocerbackend
+- Restart: sudo systemctl restart ocerbackend
+- Status: sudo systemctl status ocerbackend
+- Logs: sudo journalctl -u ocerbackend -n 100 -f (atau tail -f logs/gunicorn.err kalau mau lihat file langsung)
+Kalau kamu kasih tahu spek VPS‑nya (jumlah core + RAM), aku bisa sekalian kasih rekomendasi isi GUNICORN_WORKERS dan GUNICORN_THREADS yang pas buat dimasukin ke .env kamu.

@@ -1,0 +1,66 @@
+import os
+import sys
+import time
+import subprocess
+import django
+from datetime import datetime
+
+# Setup Django environment
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+django.setup()
+
+from deposits.models import Deposit
+from django.utils import timezone
+
+def clear_screen():
+    print("\033[H\033[J", end="")
+
+def get_recent_deposits(limit=5):
+    return Deposit.objects.all().order_by('-created_at')[:limit]
+
+def get_recent_logs(lines=20):
+    try:
+        # Fetch logs from journalctl for the ocerbackend service
+        # Filter for "deposits", "Jayapay", or "callback"
+        cmd = "journalctl -u ocerbackend -n 50 --no-pager | grep -iE 'deposit|jayapay|callback' | tail -n " + str(lines)
+        result = subprocess.check_output(cmd, shell=True).decode('utf-8')
+        return result
+    except subprocess.CalledProcessError:
+        return "Could not fetch logs (service might not be running or no permission)."
+
+def monitor():
+    print("Starting Deposit Monitor... (Press Ctrl+C to stop)")
+    time.sleep(1)
+    
+    try:
+        while True:
+            clear_screen()
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(f"=== DEPOSIT MONITOR [{now}] ===\n")
+            
+            print("--- LATEST DATABASE ENTRIES ---")
+            deposits = get_recent_deposits()
+            print(f"{'ORDER NUM':<30} | {'AMOUNT':<12} | {'STATUS':<10} | {'USER':<15} | {'TIME'}")
+            print("-" * 90)
+            
+            for dep in deposits:
+                created_at = dep.created_at.astimezone().strftime('%H:%M:%S')
+                print(f"{dep.order_num:<30} | {dep.amount:,.0f}{'':<4} | {dep.status:<10} | {dep.user.phone:<15} | {created_at}")
+                
+            print("\n" + "=" * 90 + "\n")
+            
+            print("--- REALTIME LOGS (Jayapay/Deposit) ---")
+            logs = get_recent_logs()
+            if logs.strip():
+                print(logs)
+            else:
+                print("(No recent matching logs found)")
+                
+            time.sleep(2)
+            
+    except KeyboardInterrupt:
+        print("\nMonitor stopped.")
+
+if __name__ == '__main__':
+    monitor()
