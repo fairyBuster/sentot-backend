@@ -2,6 +2,7 @@ from django.db import models, transaction as db_transaction
 from django.core.validators import MinValueValidator
 from django.conf import settings
 from django.utils import timezone
+from datetime import timedelta
 import json
 import uuid
 
@@ -326,7 +327,7 @@ class ProfitHolidaySettings(models.Model):
                 blocked += 1
             elif cur.isoformat() in disabled_set:
                 blocked += 1
-            cur = cur + timezone.timedelta(days=1)
+            cur = cur + timedelta(days=1)
         return blocked
 
 
@@ -566,14 +567,18 @@ class Investment(models.Model):
         old_claims_remaining = self.claims_remaining
         old_status = self.status
         
-        today = timezone.now().date()
-        days_passed = (today - self.created_at.date()).days
+        created_date = self.created_at.date()
+        today = timezone.localdate()
+        as_of = today - timedelta(days=1)
+        if as_of < created_date:
+            as_of = created_date
+        days_passed = (as_of - created_date).days
         days_remaining_by_time = max(0, self.duration_days - days_passed)
         
         try:
             # Jika di-setting untuk memperpanjang durasi pada hari libur, keluarkan hari libur dari hitungan waktu
             if ProfitHolidaySettings.get_settings() and ProfitHolidaySettings.get_settings().extend_duration_on_holidays:
-                blocked_days = ProfitHolidaySettings.count_blocked_days(self.created_at.date(), today)
+                blocked_days = ProfitHolidaySettings.count_blocked_days(created_date, as_of)
                 working_days_passed = max(0, days_passed - blocked_days)
                 days_remaining_by_time = max(0, self.duration_days - working_days_passed)
         except Exception:

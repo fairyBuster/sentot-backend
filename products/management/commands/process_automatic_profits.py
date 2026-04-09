@@ -111,6 +111,7 @@ class Command(BaseCommand):
                         description=description,
                         status='COMPLETED',
                         wallet_type=wallet_type,
+                        related_transaction=investment.transaction,
                         trx_id=f'AUTO-{timezone.localtime(timezone.now(), ZoneInfo("Asia/Jakarta")).strftime("%Y%m%d%H%M%S")}-{uuid.uuid4().hex[:6].upper()}'
                     )
                     

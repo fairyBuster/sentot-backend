@@ -529,7 +529,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
             qs = Transaction.objects.all()
         else:
             qs = Transaction.objects.filter(user=user)
-        return qs.select_related('user', 'product', 'upline_user').prefetch_related(
+        return qs.select_related('user', 'product', 'upline_user', 'related_transaction').prefetch_related(
             'related_withdrawal__bank_account__bank',
             'related_withdrawal__withdrawal_service'
         )
@@ -754,6 +754,71 @@ class InvestmentViewSet(viewsets.ModelViewSet):
         queryset = queryset[offset:offset + limit]
         serializer = TransactionSerializer(queryset, many=True)
         return Response(serializer.data)
+
+    @extend_schema(
+        tags=[USER_TAG],
+        parameters=[
+            OpenApiParameter(
+                name='limit',
+                type=OpenApiTypes.INT,
+                description='Jumlah transaksi INTEREST terbaru untuk investasi ini (default 3, max 20)',
+                required=False,
+            ),
+        ],
+        responses={
+            200: OpenApiResponse(
+                response=TransactionSerializer(many=True),
+                description='List transaksi INTEREST terbaru yang terkait dengan investasi ini',
+            )
+        },
+        description='Ambil transaksi INTEREST terbaru untuk 1 investasi (berdasarkan purchase transaction / rentang waktu).'
+    )
+    @action(detail=True, methods=['get'], url_path='interest-transactions')
+    def investment_interest_transactions(self, request, pk=None):
+        investment = self.get_object()
+
+        try:
+            limit = int(request.query_params.get('limit', '3'))
+        except Exception:
+            limit = 3
+        if limit < 1:
+            limit = 1
+        if limit > 20:
+            limit = 20
+
+        base_qs = Transaction.objects.filter(
+            user=investment.user,
+            product=investment.product,
+            type='INTEREST',
+        )
+
+        purchase_trx = getattr(investment, 'transaction', None)
+        if purchase_trx:
+            next_purchase = Transaction.objects.filter(
+                user=investment.user,
+                product=investment.product,
+                type='INVESTMENTS',
+                created_at__gt=purchase_trx.created_at,
+            ).order_by('created_at').first()
+
+            start_dt = purchase_trx.created_at
+            if next_purchase:
+                end_dt = next_purchase.created_at
+                qs = base_qs.filter(
+                    Q(related_transaction=purchase_trx) |
+                    (Q(related_transaction__isnull=True) & Q(created_at__gte=start_dt) & Q(created_at__lt=end_dt))
+                )
+            else:
+                qs = base_qs.filter(
+                    Q(related_transaction=purchase_trx) |
+                    (Q(related_transaction__isnull=True) & Q(created_at__gte=start_dt))
+                )
+        else:
+            qs = base_qs.filter(created_at__gte=investment.created_at)
+
+        qs = qs.select_related('user', 'product', 'upline_user', 'related_transaction').order_by('-created_at')[:limit]
+        serializer = TransactionSerializer(qs, many=True, context={'request': request})
+        return Response(serializer.data)
     
     @extend_schema(
         tags=[USER_TAG],
@@ -845,6 +910,7 @@ class InvestmentViewSet(viewsets.ModelViewSet):
                 description=f'Profit claim from {investment.product.name} investment',
                 status='COMPLETED',
                 wallet_type='BALANCE',
+                related_transaction=investment.transaction,
                 trx_id=f'CLM-{timezone.now().strftime("%Y%m%d%H%M%S")}-{uuid.uuid4().hex[:6].upper()}'
             )
             

@@ -73,6 +73,7 @@ class TransactionSerializer(serializers.ModelSerializer):
     user_phone = serializers.CharField(source='user.phone', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
     upline_phone = serializers.CharField(source='upline_user.phone', read_only=True)
+    transaction_id = serializers.SerializerMethodField()
     bank_account_name = serializers.SerializerMethodField()
     bank_account_number = serializers.SerializerMethodField()
     bank_name = serializers.SerializerMethodField()
@@ -98,6 +99,29 @@ class TransactionSerializer(serializers.ModelSerializer):
             'withdrawal_service_fee_percent',
             'withdrawal_service_fee_fixed',
         )
+
+    def get_transaction_id(self, obj):
+        try:
+            if obj.type == 'INTEREST':
+                if obj.related_transaction:
+                    return obj.related_transaction.trx_id
+                if obj.product and obj.user:
+                    from .models import Transaction
+                    qs = Transaction.objects.filter(
+                        user=obj.user,
+                        product=obj.product,
+                        type='INVESTMENTS',
+                        status='COMPLETED',
+                        created_at__lte=obj.created_at
+                    ).order_by('-created_at')
+                    purchase = qs.first() or Transaction.objects.filter(
+                        user=obj.user, product=obj.product, type='INVESTMENTS'
+                    ).order_by('-created_at').first()
+                    if purchase:
+                        return purchase.trx_id
+        except Exception:
+            return None
+        return None
 
     def validate(self, data):
         # Validate amount is positive

@@ -35,12 +35,12 @@ DEBUG = os.environ.get('DEBUG', 'True').strip().lower() in ('true', '1', 'yes', 
 ALLOWED_HOSTS = [
     host.strip() for host in os.environ.get(
         'ALLOWED_HOSTS',
-        'localhost,127.0.0.1,appgoldare.online,www.appgoldare.online'
+        'localhost,127.0.0.1,croucloud.xyz,www.croucloud.xyz'
     ).split(',') if host.strip()
 ]
 
 # Add domain from APP_DOMAIN to allowed hosts
-APP_DOMAIN = os.environ.get('APP_DOMAIN', 'api.ggeeccss.xyz').strip()
+APP_DOMAIN = os.environ.get('APP_DOMAIN', 'croucloud.xyz').strip()
 if APP_DOMAIN and APP_DOMAIN not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(APP_DOMAIN.split(':')[0])  # Add domain without port
 
@@ -186,13 +186,11 @@ STATICFILES_DIRS = []
 
 # Media files (Uploads)
 MEDIA_URL = '/media/'
-# Force MEDIA_ROOT to project directory, ignoring environment variable to prevent /var/www/backendocer path
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-# MEDIA_ROOT = os.environ.get('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
+MEDIA_ROOT = os.environ.get('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
 
 # Ensure uploaded files/directories have secure, readable permissions for web server
-FILE_UPLOAD_PERMISSIONS = 0o640
-FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o750
+FILE_UPLOAD_PERMISSIONS = 0o644
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
