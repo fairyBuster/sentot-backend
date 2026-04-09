@@ -1,0 +1,25 @@
+{
+    email {$ACME_EMAIL}
+    auto_https on
+}
+
+{$APP_DOMAIN} {
+    encode gzip zstd
+
+    handle_path /static/* {
+        root * /app/staticfiles
+        file_server
+    }
+
+    handle_path /media/* {
+        root * /app/media
+        file_server
+    }
+
+    reverse_proxy web:8000
+
+    log {
+        output stdout
+        format console
+    }
+}
