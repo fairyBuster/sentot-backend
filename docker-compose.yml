@@ -1,79 +1,91 @@
-version: "3.8"
+version: '3.8'
+
 services:
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: sentot-backend
+    build: .
     env_file:
       - .env
-    environment:
-      - PORT=8000
     ports:
       - "8000:8000"
     volumes:
-      - media:/app/media
-      - staticfiles:/app/staticfiles
-    depends_on:
-      - db
-    command: >
-      sh -c "gunicorn config.wsgi:application
-      --bind 0.0.0.0:$${PORT:-8000}
-      --workers $${WORKERS:-3}
-      --worker-class gthread
-      --threads $${THREADS:-2}
-      --timeout $${TIMEOUT:-120}
-      --keep-alive $${KEEP_ALIVE:-65}
-      --max-requests $${MAX_REQUESTS:-1000}
-      --max-requests-jitter $${MAX_REQUESTS_JITTER:-50}
-      --preload
-      --access-logfile $${ACCESS_LOGFILE:--}
-      --error-logfile $${ERROR_LOGFILE:--}
-      --log-level $${LOG_LEVEL:-info}"
-    restart: unless-stopped
-  caddy:
-    image: caddy:2-alpine
-    container_name: sentot-caddy
-    depends_on:
-      - web
-    env_file:
-      - .env
+      - .:/app
     environment:
-      - APP_DOMAIN=${APP_DOMAIN}
-      - ACME_EMAIL=${ACME_EMAIL:-}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-      - media:/app/media:ro
-      - staticfiles:/app/staticfiles:ro
+      - DEBUG=0
+      - DATABASE_HOST=pgbouncer
+      - DATABASE_PORT=6432
+      - DB_CONN_MAX_AGE=0
+      - WORKERS=3
+      - THREADS=2
+      - TIMEOUT=120
+      - KEEP_ALIVE=65
+      - MAX_REQUESTS=1000
+      - MAX_REQUESTS_JITTER=50
+      - LOG_LEVEL=info
+    depends_on:
+      - pgbouncer
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
   db:
-    image: postgres:16-alpine
-    container_name: sentot-postgres
+    image: postgres:18
     env_file:
       - .env
     environment:
-      - POSTGRES_DB=${DATABASE_NAME}
-      - POSTGRES_USER=${DATABASE_USER}
-      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
       - ./backup.sql:/docker-entrypoint-initdb.d/00-backup.sql:ro
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 10
     restart: unless-stopped
+  
+  pgbouncer:
+    image: bitnami/pgbouncer:latest
+    environment:
+      - POSTGRESQL_HOST=db
+      - POSTGRESQL_PORT=5432
+      - POSTGRESQL_USERNAME=${DATABASE_USER}
+      - POSTGRESQL_PASSWORD=${DATABASE_PASSWORD}
+      - PGBOUNCER_DATABASE=${DATABASE_NAME}
+      - PGBOUNCER_PORT=6432
+      - PGBOUNCER_DEFAULT_POOL_SIZE=20
+      - PGBOUNCER_MAX_CLIENT_CONN=500
+      - PGBOUNCER_POOL_MODE=transaction
+      - PGBOUNCER_IGNORE_STARTUP_PARAMETERS=extra_float_digits
+    depends_on:
+      - db
+    restart: unless-stopped
+  
+  caddy:
+    image: caddy:2-alpine
+    env_file:
+      - .env
+    environment:
+      - APP_DOMAIN=${APP_DOMAIN}
+      - ACME_EMAIL=${ACME_EMAIL:-}
+      - CORS_ORIGIN_REGEX=${CORS_ORIGIN_REGEX:-^https?://(localhost|127\.0\.0\.1)(:\d+)?$}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - .:/app:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+    restart: unless-stopped
+
 volumes:
-  media:
-  staticfiles:
+  postgres_data:
   caddy_data:
   caddy_config:
-  pgdata:
