@@ -1,35 +1,30 @@
-# Tutorial: Deploy SentotBackend di VPS Ubuntu (Docker)
+🔹 Update dulu
+sudo apt update && sudo apt upgrade -y
+🔹 Install Docker
+sudo apt install -y docker.io
+🔹 Aktifkan Docker
+sudo systemctl enable docker
+sudo systemctl start docker
 
-## 1) Prasyarat
-- VPS Ubuntu dengan akses sudo.
-- Domain (opsional). Jika hanya akses IP/port 8000 juga bisa.
-- Pastikan port yang diperlukan terbuka (contoh 8000; jika pakai reverse proxy, 80/443).
+🔹 Install Docker Compose
+# Install prerequisites
+apt install -y ca-certificates curl gnupg lsb-release
 
-## 2) Instal Docker + Compose Plugin
-```bash
-sudo apt-get update && sudo apt-get install -y \
-  ca-certificates curl gnupg lsb-release
+# Add Docker's GPG key
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
 
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
-
+# Add the Docker repository
 echo \
-"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-$(. /etc/os-release && echo $VERSION_CODENAME) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-sudo apt-get update && sudo apt-get install -y \
-  docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+# Update and install
+apt update
+apt install -y docker-compose-plugin
 
-sudo systemctl enable --now docker
-
-# Opsional: izinkan user non-root menjalankan docker
-sudo usermod -aG docker $USER
-newgrp docker
-
-docker -v
-docker compose version
-```
 
 ## 3) Clone Repository
 ```bash

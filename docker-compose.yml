@@ -1,12 +1,10 @@
-version: '3.8'
-
 services:
   web:
     build: .
     env_file:
       - .env
     ports:
-      - "8000:8000"
+      - "8080:8000"
     volumes:
       - .:/app
       - media:/app/media
@@ -42,7 +40,6 @@ services:
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql
-      - ./backup.sql:/docker-entrypoint-initdb.d/00-backup.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
@@ -51,18 +48,16 @@ services:
     restart: unless-stopped
   
   pgbouncer:
-    image: bitnami/pgbouncer:latest
+    image: edoburu/pgbouncer:latest
     environment:
-      - POSTGRESQL_HOST=db
-      - POSTGRESQL_PORT=5432
-      - POSTGRESQL_USERNAME=${DATABASE_USER}
-      - POSTGRESQL_PASSWORD=${DATABASE_PASSWORD}
-      - PGBOUNCER_DATABASE=${DATABASE_NAME}
-      - PGBOUNCER_PORT=6432
-      - PGBOUNCER_DEFAULT_POOL_SIZE=20
-      - PGBOUNCER_MAX_CLIENT_CONN=500
-      - PGBOUNCER_POOL_MODE=transaction
-      - PGBOUNCER_IGNORE_STARTUP_PARAMETERS=extra_float_digits
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${DATABASE_USER}
+      - DB_PASSWORD=${DATABASE_PASSWORD}
+      - DB_NAME=${DATABASE_NAME}
+      - LISTEN_PORT=6432
+      - POOL_MODE=transaction
+      - AUTH_TYPE=scram-sha-256
     depends_on:
       - db
     restart: unless-stopped

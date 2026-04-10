@@ -18,9 +18,8 @@ from datetime import timedelta
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from .env if present
-# Use override=True so local .env takes precedence over OS env vars in dev
-load_dotenv(BASE_DIR / '.env', override=True)
+# Load environment variables from .env if present without overriding existing environment
+load_dotenv(BASE_DIR / '.env', override=False)
 
 
 # Quick-start development settings - unsuitable for production
