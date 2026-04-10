@@ -9,6 +9,8 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
+      - media:/app/media
+      - staticfiles:/app/staticfiles
     environment:
       - DEBUG=0
       - DATABASE_HOST=pgbouncer
@@ -79,6 +81,8 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - .:/app:ro
+      - media:/app/media:ro
+      - staticfiles:/app/staticfiles:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
@@ -89,3 +93,5 @@ volumes:
   postgres_data:
   caddy_data:
   caddy_config:
+  media:
+  staticfiles:
